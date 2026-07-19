@@ -25,14 +25,22 @@ class MainActivity : AppCompatActivity() {
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
+    // ФИКС: поддержка множественных файлов
     private val fileChooserLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (filePathCallback == null) return@registerForActivityResult
+        
         val data = result.data
-        val results: Array<Uri>? = if (result.resultCode == RESULT_OK && data?.data != null) {
-            arrayOf(data.data!!)
-        } else null
+        val results: Array<Uri>? = when {
+            result.resultCode != RESULT_OK -> null
+            data?.clipData != null -> {
+                val count = data.clipData!!.itemCount
+                Array(count) { i -> data.clipData!!.getItemAt(i).uri }
+            }
+            data?.data != null -> arrayOf(data.data!!)
+            else -> null
+        }
         filePathCallback?.onReceiveValue(results)
         filePathCallback = null
     }
