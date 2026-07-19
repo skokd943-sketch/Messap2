@@ -8,7 +8,7 @@
         android:allowBackup="true"
         android:label="Messenger"
         android:usesCleartextTraffic="true"
-        android:theme="@android:style/Theme.NoTitleBar">
+        android:theme="@style/Theme.AppCompat.NoActionBar">
 
         <activity
             android:name=".MainActivity"
