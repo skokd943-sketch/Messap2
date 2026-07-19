@@ -26,7 +26,9 @@ class MainActivity : AppCompatActivity() {
     private val DEFAULT_URL = "https://my-server-ztxz.onrender.com"
 
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private var permissionRequest: PermissionRequest? = null
 
+    // Регистрация для выбора файлов
     private val fileChooserLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -46,13 +48,21 @@ class MainActivity : AppCompatActivity() {
         filePathCallback = null
     }
 
+    // Регистрация для запроса разрешений
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        // Проверяем, все ли разрешения получены
         val allGranted = permissions.values.all { it }
-        if (!allGranted) {
-            Toast.makeText(this, "Для работы нужны разрешения на камеру и микрофон", Toast.LENGTH_LONG).show()
+        
+        if (allGranted) {
+            // Все разрешения получены - передаем в WebView
+            permissionRequest?.grant(permissionRequest?.resources)
+            permissionRequest = null
+            Toast.makeText(this, "Разрешения получены", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Некоторые разрешения не получены", Toast.LENGTH_LONG).show()
+            permissionRequest?.deny()
+            permissionRequest = null
         }
     }
 
@@ -66,56 +76,101 @@ class MainActivity : AppCompatActivity() {
         val urlInput = findViewById<EditText>(R.id.serverUrlInput)
         val connectButton = findViewById<Button>(R.id.connectButton)
 
+        // Загружаем сохраненный URL
         val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
         var savedUrl = prefs.getString(KEY_URL, null)
-        
-        // Если сохраненного URL нет, используем дефолтный
         if (savedUrl.isNullOrBlank()) {
             savedUrl = DEFAULT_URL
             prefs.edit().putString(KEY_URL, savedUrl).apply()
         }
-        
-        // Подставляем URL в поле ввода
         urlInput.setText(savedUrl)
 
-        webView.settings.javaScriptEnabled = true
-        webView.settings.domStorageEnabled = true
-        webView.settings.mediaPlaybackRequiresUserGesture = false
-        webView.settings.allowFileAccess = true
-        webView.settings.allowContentAccess = true
-        webView.settings.setSupportZoom(true)
-        webView.settings.builtInZoomControls = true
-        webView.settings.displayZoomControls = false
-        
+        // Настройка WebView
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+            allowFileAccess = true
+            allowContentAccess = true
+            setSupportZoom(true)
+            builtInZoomControls = true
+            displayZoomControls = false
+            loadWithOverviewMode = true
+            useWideViewPort = true
+        }
+
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                // Запрашиваем разрешения при загрузке страницы
-                requestPermissionsIfNeeded()
+                // Проверяем разрешения после загрузки
+                checkAndRequestPermissions()
             }
         }
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
-                runOnUiThread {
-                    val needed = mutableListOf<String>()
-                    if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)
-                        needed.add(Manifest.permission.CAMERA)
-                    if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
-                        needed.add(Manifest.permission.RECORD_AUDIO)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED)
-                            needed.add(Manifest.permission.READ_MEDIA_IMAGES)
-                        if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.READ_MEDIA_VIDEO) != PackageManager.PERMISSION_GRANTED)
-                            needed.add(Manifest.permission.READ_MEDIA_VIDEO)
-                    } else {
-                        if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
-                            needed.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+                // Сохраняем запрос
+                permissionRequest = request
+                
+                // Собираем необходимые разрешения
+                val neededPermissions = mutableListOf<String>()
+                
+                for (resource in request.resources) {
+                    when (resource) {
+                        PermissionRequest.RESOURCE_CAMERA -> {
+                            if (ContextCompat.checkSelfPermission(
+                                    this@MainActivity,
+                                    Manifest.permission.CAMERA
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                neededPermissions.add(Manifest.permission.CAMERA)
+                            }
+                        }
+                        PermissionRequest.RESOURCE_AUDIO_CAPTURE -> {
+                            if (ContextCompat.checkSelfPermission(
+                                    this@MainActivity,
+                                    Manifest.permission.RECORD_AUDIO
+                                ) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                neededPermissions.add(Manifest.permission.RECORD_AUDIO)
+                            }
+                        }
                     }
-                    if (needed.isNotEmpty()) {
-                        permissionLauncher.launch(needed.toTypedArray())
+                }
+
+                // Добавляем разрешения для файлов
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    if (ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.READ_MEDIA_IMAGES
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        neededPermissions.add(Manifest.permission.READ_MEDIA_IMAGES)
                     }
+                    if (ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.READ_MEDIA_VIDEO
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        neededPermissions.add(Manifest.permission.READ_MEDIA_VIDEO)
+                    }
+                } else {
+                    if (ContextCompat.checkSelfPermission(
+                            this@MainActivity,
+                            Manifest.permission.READ_EXTERNAL_STORAGE
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        neededPermissions.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+                    }
+                }
+
+                if (neededPermissions.isNotEmpty()) {
+                    // Запрашиваем разрешения через приложение
+                    permissionLauncher.launch(neededPermissions.toTypedArray())
+                } else {
+                    // Все разрешения уже есть
                     request.grant(request.resources)
+                    permissionRequest = null
                 }
             }
 
@@ -142,7 +197,7 @@ class MainActivity : AppCompatActivity() {
             webView.loadUrl(url)
         }
 
-        // Автоматически подключаемся к сохраненному URL
+        // Автоподключение
         if (!savedUrl.isNullOrBlank()) {
             openServer(savedUrl)
         }
@@ -161,12 +216,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun requestPermissionsIfNeeded() {
+    private fun checkAndRequestPermissions() {
         val needed = mutableListOf<String>()
+        
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.CAMERA)
+            
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED)
             needed.add(Manifest.permission.RECORD_AUDIO)
+            
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED)
                 needed.add(Manifest.permission.READ_MEDIA_IMAGES)
@@ -176,6 +234,7 @@ class MainActivity : AppCompatActivity() {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)
                 needed.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
+        
         if (needed.isNotEmpty()) {
             permissionLauncher.launch(needed.toTypedArray())
         }
