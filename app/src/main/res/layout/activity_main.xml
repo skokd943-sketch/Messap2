@@ -1,44 +1,68 @@
+
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#0E1621">
 
+    <!-- Экран настройки -->
     <LinearLayout
         android:id="@+id/setupLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:gravity="center"
-        android:padding="32dp">
+        android:padding="32dp"
+        android:background="#0E1621">
+
+        <ImageView
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:src="@drawable/ic_telegram"
+            android:layout_marginBottom="24dp"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Адрес сервера"
+            android:text="Telegram"
             android:textColor="#FFFFFF"
-            android:textSize="18sp"
-            android:layout_marginBottom="12dp"/>
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Введите адрес сервера"
+            android:textColor="#8E9EAB"
+            android:textSize="14sp"
+            android:layout_marginBottom="24dp"/>
 
         <EditText
             android:id="@+id/serverUrlInput"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="https://example.onrender.com"
-            android:textColorHint="#888888"
+            android:layout_height="56dp"
+            android:hint="https://my-server-ztxz.onrender.com"
+            android:textColorHint="#8E9EAB"
             android:textColor="#FFFFFF"
             android:inputType="textUri"
-            android:padding="12dp"
-            android:background="#17212B"/>
+            android:padding="16dp"
+            android:background="@drawable/bg_input"
+            android:textSize="16sp"/>
 
         <Button
             android:id="@+id/connectButton"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="56dp"
             android:layout_marginTop="16dp"
-            android:text="Подключиться"/>
+            android:text="Подключиться"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:background="@drawable/bg_button"
+            android:textColor="#FFFFFF"/>
     </LinearLayout>
 
+    <!-- WebView -->
     <WebView
         android:id="@+id/webView"
         android:layout_width="match_parent"
